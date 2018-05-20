@@ -1,17 +1,15 @@
-#!/usr/bin/env python
-# -*- coding: utf-8 -*-
-
 import sys
 from functools import cmp_to_key
 import numpy as np
 import numpy.linalg as LA
-import gensim.models
 
 def get_rank(score):
     '''Given a list and give out the rank result of the list'''
     tmp = [(i, item) for i, item in enumerate(score)]
-    # tmp = sorted(tmp, cmp=lambda x, y: -cmp_to_key(x[1], y[1]))
-    tmp = sorted(tmp, key=(lambda x,y: (x[1] > y[1]) - (x[1] < y[1])))
+    tmp = sorted(tmp, key=cmp_to_key(lambda x, y: (x[1] > y[1]) - (x[1] < y[1])))
+    print(type(tmp))
+    print(len(tmp))
+
     res = [0 for i in range(len(tmp))]
     for i, (pos, score) in enumerate(tmp):
         res[pos] = i
@@ -22,15 +20,12 @@ def load_vector(filename):
     '''Load the word vector of the filenmae'''
     data = {}
     with open(filename, "r") as f:
-        words_number, words_dim = f.readline().strip().split()
-        words_number = int(words_number)
-        words_dim = int(words_dim)
         for l in f:
             words = l.strip().split()
             word = words[0]
             res = np.array([float(item) for item in words[1:]])
             data[word] = res
-    return words_number, words_dim, data
+    return data
 
 
 def load_wordsim353(filename):
@@ -48,15 +43,26 @@ def load_wordsim353(filename):
 
 def similarity(word1, word2, word2vector):
     '''get the cosine similarity of the word1 and word2'''
-    vector1 = word2vector[word1]
-    vector2 = word2vector[word2]
-    return np.dot(vector1, vector2) / (LA.norm(vector1) * LA.norm(vector2))
+    if word1 in word2vector:
+        vector1 = word2vector[word1]
+    else:
+        print("key do not exist:" + word1)
+        return 0
+
+    if word2 in word2vector:
+        vector2 = word2vector[word2]
+    else:
+        print("key do not exist:" + word2)
+        return 0
+
+    res = np.dot(vector1, vector2) / (LA.norm(vector1) * LA.norm(vector2))
+    res = float(res)
+    return res
 
 
 def get_score(test_words, word2vector):
     '''test the word2vector using test_words'''
     return [similarity(word1, word2, word2vector) for word1, word2 in test_words]
-
 
 def get_corr(listA, listB):
     '''get teh correlation of the listA and List B'''
@@ -79,14 +85,27 @@ def get_corr(listA, listB):
 
 def test_wordsim353(vector_filename, test_filename):
     ''' test the result of the vector_filename and the test_filename'''
-    words_number, words_dim, word2vector = load_vector(vector_filename)
+    word2vector = load_vector(vector_filename)
     test_words, answer = load_wordsim353(test_filename)
+    my_answer = get_score(test_words, word2vector)
+
     answer_rank = get_rank(answer)
-    my_rank = get_rank(get_score(test_words, word2vector))
+    my_rank = get_rank(my_answer)
     return get_corr(my_rank, answer_rank)
 
 if __name__ == "__main__":
-    model = "./enwiki_5_ner.txt"
-    # word_vectors = gensim.models.KeyedVectors.load_word2vec_format(model, binary=False)
-    test_filename = "wordsim353.txt"
-    print (test_wordsim353(model, test_filename))
+    vector_filename1 = "./glove.6B/glove.6B.50d.txt"
+    vector_filename2 = "./glove.6B/glove.6B.100d.txt"
+    vector_filename3 = "./glove.6B/glove.6B.200d.txt"
+    vector_filename4 = "./glove.6B/glove.6B.300d.txt"
+
+    test_filename = "./wordsim353.txt"
+
+    print(test_wordsim353(vector_filename1, test_filename))
+    print("file1 done...")
+    print(test_wordsim353(vector_filename2, test_filename))
+    print("file2 done...")
+    print(test_wordsim353(vector_filename3, test_filename))
+    print("file3 done...")
+    print(test_wordsim353(vector_filename4, test_filename))
+    print("file4 done...")
